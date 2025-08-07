@@ -1,0 +1,6 @@
+@KazeAPI_HostAddress = http://localhost:5201
+
+GET {{KazeAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
