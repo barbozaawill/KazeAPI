@@ -1,126 +1,79 @@
-﻿using KazeAPI.Models;
-using Microsoft.AspNetCore.Http.HttpResults;
+﻿using KazeAPI.DTO;
+using KazeAPI.Models;
+using KazeAPI.Services;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
-using BCrypt.Net;
-using Microsoft.AspNetCore.Identity;
-using KazeAPI.DTO;
-using Microsoft.EntityFrameworkCore;
 
-namespace KazeAPI.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-public class UsersController : ControllerBase
+namespace KazeAPI.Controllers
 {
-    private readonly AppDbContext _context;
-
-    public UsersController(AppDbContext context)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class UsersController : ControllerBase
     {
-        _context = context;
-    }
+        private readonly UsersService _usersService;
 
-    [HttpGet] 
-    public async Task<ActionResult<IEnumerable<Users>>> GetUsers()
-    {
-        return await _context.Users.ToListAsync();
-    }
-
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Users>> GetUsers(int id)
-    {
-        var user = await _context.Users.FindAsync(id);
-        if (user == null)
-            return NotFound();
-       
-        return user;
-    }
-
-    [HttpPost]
-    public async Task<ActionResult<Users>> CreateUsers(Users users)
-    {
-        
-        var existing = await _context.Users.FirstOrDefaultAsync(u => u.Email == users.Email);
-        if (existing != null)
+        public UsersController(UsersService usersService)
         {
-            return Conflict("E-mail já cadastrado.");
+            _usersService = usersService;
         }
 
-        users.PasswordHash = BCrypt.Net.BCrypt.HashPassword (users.PasswordHash);
-
-        _context.Users.Add(users);
-        await _context.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetUsers), new { id = users.Id }, users);
-    }
-
-    [HttpPost ("login")]
-    public async Task<ActionResult> Login([FromBody] LoginDTO login)
-    {
-        var user = await _context.Users.FirstOrDefaultAsync(u =>u.Email == login.Email);
-        if (user == null)
-            return Unauthorized("Usuário ou senha inválidos.");
-
-        bool senhaValida = BCrypt.Net.BCrypt.Verify(login.Password, user.PasswordHash);
-        if (!senhaValida)
-            return Unauthorized("Usuário ou senha inválidos.");
-
-        return Ok(new { message = "Login efetuado com sucesso!" });
-    }
-
-    [HttpPost("register")]
-    public async Task<ActionResult> Register([FromBody] RegisterDTO register)
-    {
-        if(_context.Users.Any(u => u.Email == register.Email))
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Users>>> GetUsers()
         {
-            return BadRequest("E-mail já cadastrado.");
+            var users = await _usersService.GetAllAsync();
+            return Ok(users);
         }
 
-        var passwordHash = BCrypt.Net.BCrypt.HashPassword(register.Password);
-
-        var user = new Users
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Users>> GetUsers(int id)
         {
-            Name = register.Name,
-            Email = register.Email,
-            UserName = register.UserName,
-            PasswordHash = passwordHash
-        };
+            var user = await _usersService.GetByIdAsync(id);
+            if (user == null) return NotFound();
+            return Ok(user);
+        }
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        [HttpPost]
+        public async Task<ActionResult> CreateUsers(Users users)
+        {
+            var created = await _usersService.CreateAsync(users);
+            if (created == null)
+                return Conflict("E-mail já cadastrado.");
+            return CreatedAtAction(nameof(GetUsers), new { id = created.Id }, created);
+        }
 
-        return Ok("Usuário registrado com sucesso.");
-    }
+        [HttpPost("register")]
+        public async Task<ActionResult> Register([FromBody] RegisterDTO register)
+        {
+            var result = await _usersService.RegisterAsync(register);
+            if (!result.Success) return BadRequest(result.Message);
+            return Ok(result.Message);
+        }
 
-    [HttpPut("{id}")]
-    public async Task<ActionResult> UpdateUsers(int id, Users updateUser)
-    {
-        if (id != updateUser.Id)
-            return BadRequest();
+        [HttpPost("login")]
+        public async Task<ActionResult> Login([FromBody] LoginDTO login)
+        {
+            var result = await _usersService.LoginAsync(login);
+            if (!result.Success) return Unauthorized(result.Message);
+            return Ok(result.Message);
+        }
 
-        var user = await _context.Users.FindAsync(id);
-        if (user == null)
-            return NotFound();
+        [HttpPut("{id}")]
+        public async Task<ActionResult> UpdateUsers(int id, Users updateUser)
+        {
+            if (id != updateUser.Id) return BadRequest("ID inválido.");
 
-        user.UserName = updateUser.UserName;
-        user.Email = updateUser.Email;
-        user.PasswordHash = updateUser.PasswordHash;
+            var success = await _usersService.UpdateAsync(id, updateUser);
+            if (!success) return NotFound();
 
-        await _context.SaveChangesAsync();
+            return NoContent();
+        }
 
-        return NoContent();
-    }
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> DeleteUsers(int id)
+        {
+            var success = await _usersService.DeleteAsync(id);
+            if (!success) return NotFound();
 
-    [HttpDelete("{id}")]
-    public async Task<ActionResult> DeleteUsers(int id)
-    {
-        var user = await _context.Users.FindAsync(id);
-        if (user == null)
-            return NotFound();
-
-        _context.Users.Remove(user);
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+            return NoContent();
+        }
     }
 }

@@ -1,3 +1,4 @@
+﻿using KazeAPI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -5,19 +6,25 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 🔐 JWT Key
+var key = Encoding.ASCII.GetBytes("criar_chave"); // Em produção, use secrets ou variáveis de ambiente
+
+// 📦 Injeção de dependências
+builder.Services.AddScoped<UsersService>();
+
+// 🗃️ DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Add services to the container.
-var key = Encoding.ASCII.GetBytes("criar_chave");
-
+// 🔐 Autenticação JWT
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddJwtBearer(options =>
+})
+.AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false; // true em produ��o
+    options.RequireHttpsMetadata = false; // true em produção
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -26,23 +33,21 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuer = false,
         ValidateAudience = false,
         ClockSkew = TimeSpan.Zero
-
     };
 });
 
 builder.Services.AddAuthorization();
 
+// 📡 Controllers + Swagger
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// 🌐 Middlewares
 
-app.UseAuthentication();
-
-// Configure the HTTP request pipeline.
+// Swagger (dev only)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -51,6 +56,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// 🔐 Autenticação antes da autorização
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
