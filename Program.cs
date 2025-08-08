@@ -6,11 +6,12 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 🔐 JWT Key
-var key = Encoding.ASCII.GetBytes("criar_chave"); // Em produção, use secrets ou variáveis de ambiente
+builder.Services.AddScoped<ITokenService, TokenService>();
 
 // 📦 Injeção de dependências
 builder.Services.AddScoped<UsersService>();
+builder.Services.AddScoped<BoardsService>();
+builder.Services.AddScoped<ITokenService, TokenService>(); // <--- Aqui!
 
 // 🗃️ DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -46,8 +47,6 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // 🌐 Middlewares
-
-// Swagger (dev only)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

@@ -1,15 +1,23 @@
 ﻿using KazeAPI.DTO;
 using KazeAPI.Models;
 using KazeAPI.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KazeAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    
     public class UsersController : ControllerBase
     {
         private readonly UsersService _usersService;
+        private readonly ITokenService _tokenService;
+
+        public AuthController(ITokenService tokenService)
+        {
+            _tokenService = tokenService;
+        }
 
         public UsersController(UsersService usersService)
         {
@@ -17,6 +25,7 @@ namespace KazeAPI.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         public async Task<ActionResult<IEnumerable<Users>>> GetUsers()
         {
             var users = await _usersService.GetAllAsync();
@@ -24,6 +33,7 @@ namespace KazeAPI.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize]
         public async Task<ActionResult<Users>> GetUsers(int id)
         {
             var user = await _usersService.GetByIdAsync(id);
@@ -32,6 +42,7 @@ namespace KazeAPI.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult> CreateUsers(Users users)
         {
             var created = await _usersService.CreateAsync(users);
@@ -40,6 +51,7 @@ namespace KazeAPI.Controllers
             return CreatedAtAction(nameof(GetUsers), new { id = created.Id }, created);
         }
 
+        [AllowAnonymous]
         [HttpPost("register")]
         public async Task<ActionResult> Register([FromBody] RegisterDTO register)
         {
@@ -57,6 +69,7 @@ namespace KazeAPI.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<ActionResult> UpdateUsers(int id, Users updateUser)
         {
             if (id != updateUser.Id) return BadRequest("ID inválido.");
@@ -68,6 +81,7 @@ namespace KazeAPI.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<ActionResult> DeleteUsers(int id)
         {
             var success = await _usersService.DeleteAsync(id);

@@ -7,6 +7,7 @@ public class AppDbContext : DbContext
         : base(options) { }
 
     public DbSet<Users> Users { get; set; }
+    public DbSet<Boards> Boards { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
